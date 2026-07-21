@@ -3,6 +3,10 @@
 namespace App\Services;
 
 use App\Exceptions\FinancialApiException;
+use App\Integrations\AvanseyrFinancial\Contracts\PayloadData;
+use App\Integrations\AvanseyrFinancial\Data\GeneratePartyData;
+use App\Integrations\AvanseyrFinancial\Data\RegisterDLData;
+use App\Integrations\AvanseyrFinancial\Data\RegisterVoucherData;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -16,25 +20,25 @@ class FinancialApiClient
     /**
      * Register a financial voucher.
      */
-    public function registerVoucher(array $payload, ?string $idempotencyKey = null): mixed
+    public function registerVoucher(RegisterVoucherData|array $payload, ?string $idempotencyKey = null): mixed
     {
-        return $this->post('/api/v1/financial/vouchers', $payload, $idempotencyKey);
+        return $this->post('/api/v1/financial/vouchers', $this->payload($payload), $idempotencyKey);
     }
 
     /**
      * Register a detailed ledger (DL).
      */
-    public function registerDL(array $payload, ?string $idempotencyKey = null): mixed
+    public function registerDL(RegisterDLData|array $payload, ?string $idempotencyKey = null): mixed
     {
-        return $this->post('/api/v1/financial/dls', $payload, $idempotencyKey);
+        return $this->post('/api/v1/financial/dls', $this->payload($payload), $idempotencyKey);
     }
 
     /**
      * Generate a party.
      */
-    public function generateParty(array $payload, ?string $idempotencyKey = null): mixed
+    public function generateParty(GeneratePartyData|array $payload, ?string $idempotencyKey = null): mixed
     {
-        return $this->post('/api/v1/financial/parties', $payload, $idempotencyKey);
+        return $this->post('/api/v1/financial/parties', $this->payload($payload), $idempotencyKey);
     }
 
     /**
@@ -76,6 +80,11 @@ class FinancialApiClient
         }
 
         return $response->json();
+    }
+
+    private function payload(PayloadData|array $payload): array
+    {
+        return $payload instanceof PayloadData ? $payload->toArray() : $payload;
     }
 
     private function sendAuthenticated(string $path, array $payload, string $idempotencyKey): Response
