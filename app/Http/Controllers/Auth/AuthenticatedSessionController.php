@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Throwable;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -17,7 +18,14 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        $request->session()->regenerate();
+        try {
+            $request->session()->regenerate();
+            $request->logSessionEstablished();
+        } catch (Throwable $exception) {
+            $request->logSessionFailure($exception);
+
+            throw $exception;
+        }
 
         return response()->noContent();
     }

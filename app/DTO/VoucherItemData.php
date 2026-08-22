@@ -45,7 +45,7 @@ class VoucherItemData
         public int $BaseCurrencyPrecision,
         public string $BaseCurrencyTitle,
         public int $NumberOfSLDLLevels,
-        public int $Quantity,
+        public float $Quantity,
     ) {}
 
     /**

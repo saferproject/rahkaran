@@ -47,7 +47,7 @@ readonly class VoucherItemData implements PayloadData
         public int $BaseCurrencyPrecision = 0,
         public string $BaseCurrencyTitle = '',
         public int $NumberOfSLDLLevels = 0,
-        public int $Quantity = 1,
+        public float $Quantity = 1,
     ) {}
 
     public function toArray(): array
