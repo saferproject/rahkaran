@@ -108,6 +108,78 @@ class FinancialVoucherApiTest extends TestCase
             ->assertExactJson(['VoucherID' => 99]);
     }
 
+    public function test_it_registers_a_voucher_from_a_minimal_payload(): void
+    {
+        $service = Mockery::mock(FinancialVoucherService::class);
+        $service->shouldReceive('register_voucher')
+            ->once()
+            ->with(Mockery::on(function ($data): bool {
+                $item = $data->VoucherItemData[0];
+
+                return $data instanceof RegisterVoucherData
+                    && $data->IsCurrencyBased === false
+                    && $data->CreatorName === ''
+                    && $item->VoucherItemID === 0
+                    && $item->BaseCurrencyExchangeRate === 1.0
+                    && $item->RowNumber === 1
+                    && $item->IsSLTraceable === false
+                    && $item->CurrencyTitle === '';
+            }))
+            ->andReturn(['VoucherID' => 100]);
+        $this->app->instance(FinancialVoucherService::class, $service);
+
+        $this->authenticateClient('vouchers:create')
+            ->postJson('/api/v1/financial/vouchers', [
+                'BranchRef' => 1,
+                'FiscalYearRef' => 1,
+                'LedgerRef' => 1,
+                'VoucherTypeRef' => 1,
+                'VoucherTypeCode' => 1,
+                'Number' => 1,
+                'State' => 1,
+                'Creator' => 1,
+                'VoucherItemData' => [[
+                    'SLRef' => 1,
+                    'Debit' => 1000,
+                    'Credit' => 0,
+                ]],
+            ])
+            ->assertOk()
+            ->assertExactJson(['VoucherID' => 100]);
+    }
+
+    public function test_validation_errors_name_the_missing_fields(): void
+    {
+        $service = Mockery::mock(FinancialVoucherService::class);
+        $service->shouldNotReceive('register_voucher');
+        $this->app->instance(FinancialVoucherService::class, $service);
+
+        $this->authenticateClient('vouchers:create')
+            ->postJson('/api/v1/financial/vouchers', [
+                'BranchRef' => 1,
+                'State' => 1,
+                'VoucherItemData' => [[
+                    'Debit' => 1000,
+                ]],
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('missing_fields', [
+                'FiscalYearRef',
+                'LedgerRef',
+                'VoucherTypeRef',
+                'VoucherTypeCode',
+                'Number',
+                'Creator',
+                'VoucherItemData.0.SLRef',
+                'VoucherItemData.0.Credit',
+            ])
+            ->assertJsonPath(
+                'message',
+                'Validation failed - missing required fields: FiscalYearRef, LedgerRef, VoucherTypeRef, '
+                .'VoucherTypeCode, Number, Creator, VoucherItemData.0.SLRef, VoucherItemData.0.Credit.'
+            );
+    }
+
     private function authenticateClient(string $ability): static
     {
         $client = ApiClient::query()->create([
