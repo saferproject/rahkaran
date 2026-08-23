@@ -49,7 +49,7 @@ class RegisterVoucherData
      *       Creator: int,
      *       CreatorName: string,
      *       StateTitle: string,
-     *      VoucherItemData: VoucherItemData
+     *       VoucherItems: VoucherItemData
      *   }
      */
     public function toArray(): array
@@ -72,7 +72,7 @@ class RegisterVoucherData
             'Creator' => $this->Creator,
             'CreatorName' => $this->CreatorName,
             'StateTitle' => $this->StateTitle,
-            'VoucherItemData' => array_map(
+            'VoucherItems' => array_map(
                 fn(VoucherItemData $item) => $item->toArray(),
                 $this->VoucherItemData
             ),

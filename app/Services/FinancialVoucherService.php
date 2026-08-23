@@ -96,7 +96,7 @@ class FinancialVoucherService
                 throw $this->loginException($stage, $attemptId, 'AVAN_SEIR_PASSWORD is missing.');
             }
 
-            $this->logStageCompleted($context, $stage, $stageStartedAt);
+            // $this->logStageCompleted($context, $stage, $stageStartedAt);
 
             // The reference client reuses one CURL instance. A shared cookie
             // jar reproduces that behavior for session, login and API calls.
@@ -116,11 +116,11 @@ class FinancialVoucherService
                     $response->status(),
                 );
             }
-            $this->logStageCompleted($context, $stage, $stageStartedAt, [
-                'http_status' => $response->status(),
-                'cookie_count' => count($cookieJar),
-                'cookie_names' => $this->cookieNames($cookieJar),
-            ]);
+            // $this->logStageCompleted($context, $stage, $stageStartedAt, [
+            //     'http_status' => $response->status(),
+            //     'cookie_count' => count($cookieJar),
+            //     'cookie_names' => $this->cookieNames($cookieJar),
+            // ]);
 
             $stage = 'session_validation';
             $stageStartedAt = microtime(true);
@@ -138,7 +138,7 @@ class FinancialVoucherService
                     $response->status(),
                 );
             }
-            $this->logStageCompleted($context, $stage, $stageStartedAt);
+            // $this->logStageCompleted($context, $stage, $stageStartedAt);
 
             $stage = 'password_encryption';
             $stageStartedAt = microtime(true);
@@ -148,7 +148,7 @@ class FinancialVoucherService
                 $session['rsa']['E'],
                 $sessionId . '**' . $password
             );
-            $this->logStageCompleted($context, $stage, $stageStartedAt);
+            // $this->logStageCompleted($context, $stage, $stageStartedAt);
 
             $stage = 'login_request';
             $stageStartedAt = microtime(true);
@@ -171,11 +171,11 @@ class FinancialVoucherService
                     $response->status(),
                 );
             }
-            $this->logStageCompleted($context, $stage, $stageStartedAt, [
-                'http_status' => $response->status(),
-                'cookie_count' => count($cookieJar),
-                'cookie_names' => $this->cookieNames($cookieJar),
-            ]);
+            // $this->logStageCompleted($context, $stage, $stageStartedAt, [
+            //     'http_status' => $response->status(),
+            //     'cookie_count' => count($cookieJar),
+            //     'cookie_names' => $this->cookieNames($cookieJar),
+            // ]);
 
             // The official PHP sample treats any non-empty login response as
             // an authentication error; a successful login returns no content.
@@ -191,15 +191,15 @@ class FinancialVoucherService
             }
 
             $this->cookieJar = $cookieJar;
-            $this->logStageCompleted($context, $stage, $stageStartedAt);
+            // $this->logStageCompleted($context, $stage, $stageStartedAt);
 
-            Log::info('Rahkaran login succeeded.', array_merge($context, [
-                'event' => 'rahkaran.login.succeeded',
-                'stage' => 'completed',
-                'duration_ms' => $this->elapsedMilliseconds($startedAt),
-                'cookie_count' => count($cookieJar),
-                'cookie_names' => $this->cookieNames($cookieJar),
-            ]));
+            // Log::info('Rahkaran login succeeded.', array_merge($context, [
+            //     'event' => 'rahkaran.login.succeeded',
+            //     'stage' => 'completed',
+            //     'duration_ms' => $this->elapsedMilliseconds($startedAt),
+            //     'cookie_count' => count($cookieJar),
+            //     'cookie_names' => $this->cookieNames($cookieJar),
+            // ]));
         } catch (Throwable $exception) {
             $errorContext = array_merge($context, [
                 'event' => 'rahkaran.login.failed',
@@ -336,6 +336,8 @@ class FinancialVoucherService
         if ($this->cookieJar !== null) {
             $request = $request->withOptions(['cookies' => $this->cookieJar]);
         }
+
+        Log::info('Rahkaran data posting', [...$data, 'url' => $this->baseUrl . $url]);
 
         return $request->withBody(json_encode($data, JSON_UNESCAPED_UNICODE))
             ->post($this->baseUrl . $url);
