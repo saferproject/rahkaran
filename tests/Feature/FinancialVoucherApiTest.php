@@ -98,6 +98,8 @@ class FinancialVoucherApiTest extends TestCase
             ->once()
             ->with(Mockery::on(fn ($data): bool => $data instanceof RegisterVoucherData
                 && $data->State->value === 1
+                && $data->Date === strtotime('2026-07-21')
+                && $data->VoucherItemData[0]->SLRef === null
                 && count($data->VoucherItemData) === 1))
             ->andReturn(['VoucherID' => 99]);
         $this->app->instance(FinancialVoucherService::class, $service);
@@ -170,13 +172,12 @@ class FinancialVoucherApiTest extends TestCase
                 'VoucherTypeCode',
                 'Number',
                 'Creator',
-                'VoucherItemData.0.SLRef',
                 'VoucherItemData.0.Credit',
             ])
             ->assertJsonPath(
                 'message',
                 'Validation failed - missing required fields: FiscalYearRef, LedgerRef, VoucherTypeRef, '
-                .'VoucherTypeCode, Number, Creator, VoucherItemData.0.SLRef, VoucherItemData.0.Credit.'
+                .'VoucherTypeCode, Number, Creator, VoucherItemData.0.Credit.'
             );
     }
 
@@ -216,7 +217,7 @@ class FinancialVoucherApiTest extends TestCase
             'StateTitle' => '',
             'VoucherItemData' => [[
                 'VoucherItemID' => 0,
-                'SLRef' => 1,
+                'SLRef' => null,
                 'Debit' => 1000,
                 'Credit' => 0,
                 'CurrencyAmount' => 1000,

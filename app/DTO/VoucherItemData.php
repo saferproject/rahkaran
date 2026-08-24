@@ -6,7 +6,7 @@ class VoucherItemData
 {
     public function __construct(
         public int $VoucherItemID,
-        public int $SLRef,
+        public ?int $SLRef,
         public float $Debit,
         public float $Credit,
         public float $CurrencyAmount,
@@ -51,7 +51,7 @@ class VoucherItemData
     /**
      * @return array{
      *           VoucherItemID: int,
-     *           SLRef: int,
+     *           SLRef: int|null,
      *           Debit: float,
      *           Credit: float,
      *           CurrencyAmount: float,

@@ -152,7 +152,7 @@ class RegisterVoucherRequest extends FormRequest
             'VoucherItemData' => ['required', 'array', 'min:1'],
 
             // Only the accounting-relevant item fields stay required.
-            'VoucherItemData.*.SLRef' => ['required', 'integer'],
+            'VoucherItemData.*.SLRef' => ['nullable', 'integer'],
             'VoucherItemData.*.Debit' => ['required', 'numeric'],
             'VoucherItemData.*.Credit' => ['required', 'numeric'],
 
@@ -203,7 +203,7 @@ class RegisterVoucherRequest extends FormRequest
 
         return new RegisterVoucherData(
             BranchRef: (int) $data['BranchRef'],
-            Date: $this->asString($data['Date'] ?? null),
+            Date: $this->asTimestamp($data['Date'] ?? null),
             Description: $this->asString($data['Description'] ?? null),
             Description_En: $this->asString($data['Description_En'] ?? null),
             FiscalYearRef: (int) $data['FiscalYearRef'],
@@ -220,7 +220,7 @@ class RegisterVoucherRequest extends FormRequest
             CreatorName: $this->asString($data['CreatorName'] ?? null),
             StateTitle: $this->asString($data['StateTitle'] ?? null),
             VoucherItemData: array_values(array_map(
-                fn (array $item): VoucherItemData => $this->toItemDto($item),
+                fn(array $item): VoucherItemData => $this->toItemDto($item),
                 $data['VoucherItemData'],
             )),
         );
@@ -233,7 +233,7 @@ class RegisterVoucherRequest extends FormRequest
     {
         return new VoucherItemData(
             VoucherItemID: $this->asInt($item['VoucherItemID'] ?? null),
-            SLRef: $this->asInt($item['SLRef'] ?? null),
+            SLRef: $this->asNullableInt($item['SLRef'] ?? null),
             Debit: $this->asFloat($item['Debit'] ?? null),
             Credit: $this->asFloat($item['Credit'] ?? null),
             CurrencyAmount: $this->asFloat($item['CurrencyAmount'] ?? null),
@@ -303,6 +303,20 @@ class RegisterVoucherRequest extends FormRequest
     private function asInt(mixed $value): int
     {
         return (int) ($value ?? 0);
+    }
+
+    private function asNullableInt(mixed $value): ?int
+    {
+        return $this->isBlank($value) ? null : (int) $value;
+    }
+
+    private function asTimestamp(mixed $value): int
+    {
+        if ($this->isBlank($value)) {
+            return 0;
+        }
+
+        return strtotime((string) $value);
     }
 
     private function asFloat(mixed $value): float
