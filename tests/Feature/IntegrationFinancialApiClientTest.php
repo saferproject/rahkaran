@@ -89,7 +89,6 @@ class IntegrationFinancialApiClientTest extends TestCase
             VoucherItemData: [
                 new VoucherItemData(
                     Debit: 1000,
-                    Credit: 0,
                     SLCode: '8013125',
                     DL5: '2001',
                     DLTypeRef5: 2,
@@ -126,7 +125,6 @@ class IntegrationFinancialApiClientTest extends TestCase
             VoucherItemData: [
                 new VoucherItemData(
                     Debit: 1000,
-                    Credit: 0,
                     SLCode: '8013125',
                     DL5: '2001',
                     DLTypeRef5: 2,
@@ -143,7 +141,7 @@ class IntegrationFinancialApiClientTest extends TestCase
 
             return $request['Date'] === 1765465335
                 && $item['Debit'] === 1000.0
-                && $item['Credit'] === 0.0
+                && ! array_key_exists('Credit', $item)
                 && $item['DL5'] === '2001'
                 && $item['DLTypeRef5'] === 2
                 && ! array_key_exists('DL4', $item)
@@ -174,7 +172,7 @@ class IntegrationFinancialApiClientTest extends TestCase
                 VoucherTypeCode: 5,
                 Number: 18452,
                 Creator: 10,
-                VoucherItemData: [new VoucherItemData(Debit: 1000, Credit: 0)],
+                VoucherItemData: [new VoucherItemData(Debit: 1000)],
             ));
 
             $this->fail('A FinancialApiException was not thrown.');
@@ -188,9 +186,17 @@ class IntegrationFinancialApiClientTest extends TestCase
     public function test_voucher_item_rejects_zero_debit_and_credit_before_sending(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('At least one of Debit or Credit must be greater than zero.');
+        $this->expectExceptionMessage('Exactly one of Debit or Credit must be greater than zero.');
 
         new VoucherItemData(Debit: 0, Credit: 0);
+    }
+
+    public function test_voucher_item_omits_zero_debit_when_credit_has_a_value(): void
+    {
+        $item = new VoucherItemData(Debit: 0, Credit: 750);
+
+        $this->assertSame(750.0, $item->toArray()['Credit']);
+        $this->assertArrayNotHasKey('Debit', $item->toArray());
     }
 
     private function tokenPair(): array

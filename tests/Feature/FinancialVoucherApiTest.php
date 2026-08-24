@@ -109,6 +109,8 @@ class FinancialVoucherApiTest extends TestCase
                     && $item['ID'] === 0
                     && $item['DL4'] === '1001'
                     && $item['DLTypeRef4'] === 1
+                    && $item['Debit'] === 1000.0
+                    && ! array_key_exists('Credit', $item)
                     && ! array_key_exists('SLRef', $item)
                     && ! array_key_exists('VoucherItemID', $item)
                     && ! array_key_exists('DL', $item)
@@ -208,12 +210,11 @@ class FinancialVoucherApiTest extends TestCase
                 'VoucherTypeCode',
                 'Number',
                 'Creator',
-                'VoucherItemData.0.Credit',
             ])
             ->assertJsonPath(
                 'message',
                 'Validation failed - missing required fields: FiscalYearRef, LedgerRef, VoucherTypeRef, '
-                .'VoucherTypeCode, Number, Creator, VoucherItemData.0.Credit.'
+                .'VoucherTypeCode, Number, Creator.'
             );
     }
 

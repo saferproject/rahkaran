@@ -2,6 +2,8 @@
 
 namespace App\DTO;
 
+use InvalidArgumentException;
+
 class VoucherItemData
 {
     /**
@@ -9,8 +11,8 @@ class VoucherItemData
      * @param  array<string, mixed>|null  $ExtraInfo
      */
     public function __construct(
-        public float $Debit,
-        public float $Credit,
+        public ?float $Debit = null,
+        public ?float $Credit = null,
         public ?int $RowNumber = null,
         public ?int $ID = null,
         public ?float $BaseCurrencyAmount = null,
@@ -49,7 +51,21 @@ class VoucherItemData
         public ?int $TaxStateType = null,
         public ?float $TollAmount = null,
         public ?int $TransactionType = null,
-    ) {}
+    ) {
+        if (($this->Debit ?? 0) < 0 || ($this->Credit ?? 0) < 0) {
+            throw new InvalidArgumentException('Debit and Credit cannot be negative.');
+        }
+
+        $hasDebit = $this->Debit !== null && $this->Debit > 0;
+        $hasCredit = $this->Credit !== null && $this->Credit > 0;
+
+        if ($hasDebit === $hasCredit) {
+            throw new InvalidArgumentException('Exactly one of Debit or Credit must be greater than zero.');
+        }
+
+        $this->Debit = $hasDebit ? $this->Debit : null;
+        $this->Credit = $hasCredit ? $this->Credit : null;
+    }
 
     /** @return array<string, mixed> */
     public function toArray(): array

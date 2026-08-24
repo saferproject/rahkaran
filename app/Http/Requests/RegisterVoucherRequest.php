@@ -9,6 +9,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use Throwable;
 
 class RegisterVoucherRequest extends FormRequest
@@ -93,10 +94,9 @@ class RegisterVoucherRequest extends FormRequest
             'VoucherReferenceInfo' => ['nullable', 'array'],
             'VoucherItemData' => ['required', 'array', 'min:1'],
 
-            // Only the accounting-relevant item fields stay required.
             'VoucherItemData.*.SLRef' => ['nullable', 'integer'],
-            'VoucherItemData.*.Debit' => ['required', 'numeric'],
-            'VoucherItemData.*.Credit' => ['required', 'numeric'],
+            'VoucherItemData.*.Debit' => ['nullable', 'numeric', 'min:0'],
+            'VoucherItemData.*.Credit' => ['nullable', 'numeric', 'min:0'],
 
             'VoucherItemData.*.ID' => ['nullable', 'integer'],
             'VoucherItemData.*.CurrencyAmount' => ['nullable', 'numeric'],
@@ -151,6 +151,29 @@ class RegisterVoucherRequest extends FormRequest
         return $rules;
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            foreach ((array) $this->input('VoucherItemData', []) as $index => $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $debit = is_numeric($item['Debit'] ?? null) ? (float) $item['Debit'] : 0.0;
+                $credit = is_numeric($item['Credit'] ?? null) ? (float) $item['Credit'] : 0.0;
+                $hasDebit = $debit > 0;
+                $hasCredit = $credit > 0;
+
+                if ($hasDebit === $hasCredit) {
+                    $validator->errors()->add(
+                        "VoucherItemData.{$index}.Debit",
+                        'Exactly one of Debit or Credit must be greater than zero.',
+                    );
+                }
+            }
+        });
+    }
+
     public function toDto(): RegisterVoucherData
     {
         $data = $this->validated();
@@ -165,7 +188,7 @@ class RegisterVoucherRequest extends FormRequest
             State: VoucherStateEnum::from((int) $data['State']),
             Creator: (int) $data['Creator'],
             VoucherItemData: array_values(array_map(
-                fn(array $item): VoucherItemData => $this->toItemDto($item),
+                fn (array $item): VoucherItemData => $this->toItemDto($item),
                 $data['VoucherItemData'],
             )),
             Date: $this->asWcfDate($data['Date'] ?? null),
@@ -188,8 +211,8 @@ class RegisterVoucherRequest extends FormRequest
     private function toItemDto(array $item): VoucherItemData
     {
         return new VoucherItemData(
-            Debit: $this->asFloat($item['Debit'] ?? null),
-            Credit: $this->asFloat($item['Credit'] ?? null),
+            Debit: $this->asAccountingAmount($item['Debit'] ?? null),
+            Credit: $this->asAccountingAmount($item['Credit'] ?? null),
             RowNumber: $this->asNullableInt($item['RowNumber'] ?? null),
             ID: $this->asNullableInt($item['ID'] ?? null),
             BaseCurrencyAmount: $this->asNullableFloat($item['BaseCurrencyAmount'] ?? null),
@@ -221,7 +244,7 @@ class RegisterVoucherRequest extends FormRequest
             PurchaseOrSale: $this->asNullableInt($item['PurchaseOrSale'] ?? null),
             Quantity: $this->asNullableFloat($item['Quantity'] ?? null),
             SLCode: $this->asNullableString($item['SLCode'] ?? null),
-            SLRef: $this->asNullableInt(/*$item['SLRef'] ??*/null),
+            SLRef: $this->asNullableInt(/* $item['SLRef'] ?? */ null),
             SLTitle: $this->asNullableString($item['SLTitle'] ?? null),
             TaxAccountType: $this->asNullableInt($item['TaxAccountType'] ?? null),
             TaxAmount: $this->asNullableFloat($item['TaxAmount'] ?? null),
@@ -241,7 +264,7 @@ class RegisterVoucherRequest extends FormRequest
                 'DL' => $this->asNullableString($item["DL{$level}"] ?? null),
                 'DLLevelTitle' => $this->asNullableString($item["DLLevel{$level}Title"] ?? null),
                 'DLTypeRef' => $this->asNullableInt($item["DLTypeRef{$level}"] ?? null),
-            ], static fn(mixed $value): bool => $value !== null);
+            ], static fn (mixed $value): bool => $value !== null);
 
             if ($detail !== []) {
                 $details[$level] = $detail;
@@ -276,6 +299,13 @@ class RegisterVoucherRequest extends FormRequest
         return $this->isBlank($value) ? null : (float) $value;
     }
 
+    private function asAccountingAmount(mixed $value): ?float
+    {
+        $amount = $this->asNullableFloat($value);
+
+        return $amount !== null && $amount > 0 ? $amount : null;
+    }
+
     private function asFloat(mixed $value): float
     {
         return (float) ($value ?? 0);
@@ -304,7 +334,7 @@ class RegisterVoucherRequest extends FormRequest
             $numericTimestamp = (int) $value;
             $isMilliseconds = abs($numericTimestamp) >= 100_000_000_000;
             $milliseconds = $isMilliseconds ? $numericTimestamp : $numericTimestamp * 1000;
-            $date = (new DateTimeImmutable('@' . intdiv($milliseconds, 1000)))->setTimezone($timezone);
+            $date = (new DateTimeImmutable('@'.intdiv($milliseconds, 1000)))->setTimezone($timezone);
         } else {
             $date = (new DateTimeImmutable($value, $timezone))->setTimezone($timezone);
             $milliseconds = ($date->getTimestamp() * 1000) + (int) $date->format('v');

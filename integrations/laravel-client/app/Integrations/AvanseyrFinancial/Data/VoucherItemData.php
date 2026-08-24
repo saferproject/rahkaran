@@ -9,8 +9,8 @@ readonly class VoucherItemData implements PayloadData
 {
     /** @param  array<string, mixed>|null  $ExtraInfo */
     public function __construct(
-        public float $Debit,
-        public float $Credit,
+        public ?float $Debit = null,
+        public ?float $Credit = null,
         public ?int $SLRef = null,
         public ?int $ID = null,
         public ?float $CurrencyAmount = null,
@@ -100,15 +100,26 @@ readonly class VoucherItemData implements PayloadData
         public ?int $DLTypeRef19 = null,
         public ?int $DLTypeRef20 = null,
     ) {
-        if ($this->Debit == 0.0 && $this->Credit == 0.0) {
-            throw new InvalidArgumentException('At least one of Debit or Credit must be greater than zero.');
+        if (($this->Debit ?? 0) < 0 || ($this->Credit ?? 0) < 0) {
+            throw new InvalidArgumentException('Debit and Credit cannot be negative.');
+        }
+
+        $hasDebit = $this->Debit !== null && $this->Debit > 0;
+        $hasCredit = $this->Credit !== null && $this->Credit > 0;
+
+        if ($hasDebit === $hasCredit) {
+            throw new InvalidArgumentException('Exactly one of Debit or Credit must be greater than zero.');
         }
     }
 
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return self::withoutNulls(get_object_vars($this));
+        $data = get_object_vars($this);
+        $data['Debit'] = $this->Debit !== null && $this->Debit > 0 ? $this->Debit : null;
+        $data['Credit'] = $this->Credit !== null && $this->Credit > 0 ? $this->Credit : null;
+
+        return self::withoutNulls($data);
     }
 
     /** @return array<mixed> */

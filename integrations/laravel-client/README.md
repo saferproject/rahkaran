@@ -75,7 +75,6 @@ final class AccountingService
             VoucherItemData: [
                 new VoucherItemData(
                     Debit: 1_000_000,
-                    Credit: 0,
                     SLCode: '8013125',
                     DL5: '2001',
                     DLTypeRef5: 2,
@@ -94,7 +93,7 @@ final class AccountingService
 
 Important accounting rules:
 
-- At least one of `Debit` or `Credit` must be greater than zero in every item.
+- Exactly one of `Debit` or `Credit` must be greater than zero in every item. Omit the other field; a legacy zero is normalized and not sent.
 - Send only the detail levels allowed for the selected account.
 - When Rahkaran requires level 5, provide `DL5` and its matching `DLTypeRef5`; do not put that code in `DL4`.
 - `SLRef` may be omitted or `null`. If it is null, the key is not sent.
@@ -158,7 +157,6 @@ new VoucherItemData(
 // After (explicit Rahkaran fields)
 new VoucherItemData(
     Debit: 1_000_000,
-    Credit: 0,
     SLRef: 100,
     ID: 0,
     DL5: '2001',

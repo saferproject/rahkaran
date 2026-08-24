@@ -58,7 +58,6 @@ $result = app(FinancialApiClient::class)->registerVoucher(
         VoucherItemData: [
             new VoucherItemData(
                 Debit: 1_000_000,
-                Credit: 0,
                 SLCode: '8013125',
                 DL5: '2001',
                 DLTypeRef5: 2,
@@ -77,7 +76,7 @@ $result = app(FinancialApiClient::class)->registerVoucher(
 
 نکات مهم:
 
-- در هر ردیف حداقل یکی از `Debit` یا `Credit` باید بزرگ‌تر از صفر باشد.
+- در هر ردیف دقیقاً یکی از `Debit` یا `Credit` باید بزرگ‌تر از صفر باشد. فیلد مقابل را ارسال نکنید؛ مقدار صفر قدیمی نیز پیش از ارسال حذف می‌شود.
 - سطح تفصیلی باید صریح ارسال شود؛ برای مثال اگر سطح ۵ اجباری است از `DL5` و `DLTypeRef5` استفاده کنید.
 - فیلدهای قدیمی و مبهم `DL`، `DLTypeRef` و `DLLevelTitle` دیگر در DTO وجود ندارند.
 - `SLRef` می‌تواند `null` باشد. تمام مقادیر اختیاری `null` پیش از ارسال حذف می‌شوند.
@@ -125,7 +124,6 @@ new VoucherItemData(
 // بعد
 new VoucherItemData(
     Debit: 1_000_000,
-    Credit: 0,
     SLRef: 100,
     ID: 0,
     DL5: '2001',
