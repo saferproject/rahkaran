@@ -218,6 +218,78 @@ class FinancialVoucherApiTest extends TestCase
             );
     }
 
+    public function test_articles_without_a_currency_are_sent_without_currency_fields(): void
+    {
+        $sent = null;
+
+        $service = Mockery::mock(FinancialVoucherService::class);
+        $service->shouldReceive('register_voucher')
+            ->once()
+            ->with(Mockery::on(function ($data) use (&$sent): bool {
+                $sent = $data->toArray();
+
+                return true;
+            }))
+            ->andReturn(['VoucherID' => 101]);
+        $this->app->instance(FinancialVoucherService::class, $service);
+
+        $this->authenticateClient('vouchers:create')
+            ->postJson('/api/v1/financial/vouchers', [
+                'BranchRef' => 1,
+                'FiscalYearRef' => 6,
+                'LedgerRef' => 1,
+                'VoucherTypeRef' => 1,
+                'VoucherTypeCode' => 1,
+                'Number' => 2180,
+                'State' => 1,
+                'Creator' => 488,
+                'IsCurrencyBased' => false,
+                'VoucherItemData' => [[
+                    'ID' => 0,
+                    'SLCode' => '8013125',
+                    'Debit' => 3000000,
+                    'Credit' => 0,
+                    'RowNumber' => 1,
+                    'BaseCurrencyAmount' => 3000000,
+                    'BaseCurrencyExchangeRate' => 1,
+                    'BaseCurrencyExchangeRateRef' => 0,
+                    'BaseCurrencyPrecision' => 0,
+                    'BaseCurrencyRef' => 0,
+                    'CurrencyAmount' => 0,
+                    'CurrencyCredit' => 0,
+                    'CurrencyDebit' => 0,
+                    'CurrencyPrecision' => 0,
+                    'CurrencyRef' => 0,
+                    'OperationalCurrencyExchangeRate' => 0,
+                    'OperationalCurrencyExchangeRateRef' => 0,
+                    'OperationalCurrencyPrecision' => 0,
+                ]],
+            ])
+            ->assertOk();
+
+        $article = $sent['VoucherItems'][0];
+
+        foreach ([
+            'BaseCurrencyAmount',
+            'BaseCurrencyExchangeRate',
+            'BaseCurrencyExchangeRateRef',
+            'BaseCurrencyPrecision',
+            'BaseCurrencyRef',
+            'CurrencyAmount',
+            'CurrencyCredit',
+            'CurrencyDebit',
+            'CurrencyPrecision',
+            'CurrencyRef',
+            'OperationalCurrencyExchangeRate',
+            'OperationalCurrencyExchangeRateRef',
+            'OperationalCurrencyPrecision',
+        ] as $field) {
+            $this->assertArrayNotHasKey($field, $article, "{$field} must not be sent without a currency.");
+        }
+
+        $this->assertSame(3000000.0, $article['Debit']);
+    }
+
     private function authenticateClient(string $ability): static
     {
         $client = ApiClient::query()->create([

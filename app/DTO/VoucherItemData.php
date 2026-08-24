@@ -65,6 +65,41 @@ class VoucherItemData
 
         $this->Debit = $hasDebit ? $this->Debit : null;
         $this->Credit = $hasCredit ? $this->Credit : null;
+
+        $this->dropCurrencyBlocksWithoutCurrency();
+    }
+
+    /**
+     * Rahkaran resolves the currency of every article it builds and answers
+     * "در آرتیکل N ارز نامعتبر است" when the ref does not point at a currency.
+     * A ref of 0 is not a currency, so the block it belongs to is dropped
+     * instead of being sent as a set of zeros.
+     */
+    private function dropCurrencyBlocksWithoutCurrency(): void
+    {
+        if (($this->CurrencyRef ?? 0) <= 0) {
+            $this->CurrencyRef = null;
+            $this->CurrencyAmount = null;
+            $this->CurrencyCredit = null;
+            $this->CurrencyDebit = null;
+            $this->CurrencyPrecision = null;
+            $this->CurrencyTitle = null;
+        }
+
+        if (($this->BaseCurrencyRef ?? 0) <= 0) {
+            $this->BaseCurrencyRef = null;
+            $this->BaseCurrencyAmount = null;
+            $this->BaseCurrencyExchangeRate = null;
+            $this->BaseCurrencyExchangeRateRef = null;
+            $this->BaseCurrencyPrecision = null;
+            $this->BaseCurrencyTitle = null;
+        }
+
+        if (($this->OperationalCurrencyExchangeRateRef ?? 0) <= 0 && ($this->OperationalCurrencyExchangeRate ?? 0) <= 0) {
+            $this->OperationalCurrencyExchangeRate = null;
+            $this->OperationalCurrencyExchangeRateRef = null;
+            $this->OperationalCurrencyPrecision = null;
+        }
     }
 
     /** @return array<string, mixed> */
