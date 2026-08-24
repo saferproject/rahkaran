@@ -5,119 +5,53 @@ namespace App\Http\Requests;
 use App\DTO\RegisterVoucherData;
 use App\DTO\VoucherItemData;
 use App\Enums\VoucherStateEnum;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class RegisterVoucherRequest extends FormRequest
 {
-    /**
-     * Voucher fields Rahkaran expects in the payload but that the caller may
-     * omit. They are filled with a neutral value instead of being rejected by
-     * a `required` rule.
-     *
-     * @var array<string, string|bool>
-     */
-    private const VOUCHER_DEFAULTS = [
-        'Date' => '',
-        'Description' => '',
-        'Description_En' => '',
-        'VoucherTypeOwnerSystem' => '',
-        'AuxiliaryNumber' => '',
-        'IsCurrencyBased' => false,
-        'IsExternal' => false,
-        'CreatorName' => '',
-        'StateTitle' => '',
-    ];
-
-    /**
-     * Voucher item fields with a neutral default. `RowNumber` is handled apart
-     * because its default depends on the position of the item.
-     *
-     * @var array<string, string|int|float|bool>
-     */
-    private const ITEM_DEFAULTS = [
-        'VoucherItemID' => 0,
-        'CurrencyAmount' => 0,
-        'BaseCurrencyAmount' => 0,
-        'CurrencyCredit' => 0,
-        'CurrencyDebit' => 0,
-        'CurrencyRef' => 0,
-        'OperationalCurrencyExchangeRate' => 0,
-        'OperationalCurrencyExchangeRateRef' => 0,
-        'BaseCurrencyExchangeRate' => 1,
-        'BaseCurrencyExchangeRateRef' => 0,
-        'DL' => '',
-        'DLTypeRef' => 0,
-        'Description' => '',
-        'Description_En' => '',
-        'FollowUpDate' => '',
-        'FollowUpNumber' => '',
-        'SLCode' => '',
-        'ExtraData' => '',
-        'TaxAccountType' => 0,
-        'TransactionType' => 0,
-        'TaxStateType' => 0,
-        'PurchaseOrSale' => 0,
-        'ItemOrService' => 0,
-        'PartyRef' => 0,
-        'TaxAmount' => 0,
-        'TollAmount' => 0,
-        'SLTitle' => '',
-        'IsSLTraceable' => false,
-        'OperationalCurrencyPrecision' => 0,
-        'DLLevelTitle' => '',
-        'CurrencyPrecision' => 0,
-        'CurrencyTitle' => '',
-        'NumberOfSLDLLevels' => 0,
-        'Quantity' => 0,
-    ];
-
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Fill every optional field with its default so the payload is complete
-     * before validation runs. Only the fields carrying real accounting meaning
-     * stay `required`.
-     */
     protected function prepareForValidation(): void
     {
         $payload = $this->all();
 
-        // The Rahkaran field is IsCurrencyBased; older callers send IsCurrentBased.
-        if ($this->isBlank($payload['IsCurrencyBased'] ?? null) && ! $this->isBlank($payload['IsCurrentBased'] ?? null)) {
+        if (! array_key_exists('IsCurrencyBased', $payload) && array_key_exists('IsCurrentBased', $payload)) {
             $payload['IsCurrencyBased'] = $payload['IsCurrentBased'];
         }
 
-        foreach (self::VOUCHER_DEFAULTS as $field => $default) {
-            if ($this->isBlank($payload[$field] ?? null)) {
-                $payload[$field] = $default;
-            }
+        if (! array_key_exists('VoucherItemData', $payload) && isset($payload['VoucherItems'])) {
+            $payload['VoucherItemData'] = $payload['VoucherItems'];
         }
 
         $items = $payload['VoucherItemData'] ?? null;
 
         if (is_array($items)) {
-            $rowNumber = 0;
-            $defaults = $this->itemDefaults();
-
             foreach ($items as $index => $item) {
-                $rowNumber++;
-
                 if (! is_array($item)) {
                     continue;
                 }
 
-                foreach ($defaults as $field => $default) {
-                    if ($this->isBlank($item[$field] ?? null)) {
-                        $item[$field] = $default;
-                    }
+                if (! array_key_exists('ID', $item) && array_key_exists('VoucherItemID', $item)) {
+                    $item['ID'] = $item['VoucherItemID'];
                 }
 
-                if ($this->isBlank($item['RowNumber'] ?? null)) {
-                    $item['RowNumber'] = $rowNumber;
+                foreach (
+                    [
+                        'DL' => 'DL4',
+                        'DLLevelTitle' => 'DLLevel4Title',
+                        'DLTypeRef' => 'DLTypeRef4',
+                    ] as $legacyField => $documentedField
+                ) {
+                    if (! array_key_exists($documentedField, $item) && array_key_exists($legacyField, $item)) {
+                        $item[$documentedField] = $item[$legacyField];
+                    }
                 }
 
                 $items[$index] = $item;
@@ -131,11 +65,18 @@ class RegisterVoucherRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'BranchRef' => ['required', 'integer'],
-            'Date' => ['nullable', 'string'],
+            'Date' => ['nullable', function (string $attribute, mixed $value, \Closure $fail): void {
+                try {
+                    $this->asWcfDate($value);
+                } catch (Throwable) {
+                    $fail("The {$attribute} field must be a valid date or Unix timestamp.");
+                }
+            }],
             'Description' => ['nullable', 'string'],
             'Description_En' => ['nullable', 'string'],
+            'ExtraInfo' => ['nullable', 'array'],
             'FiscalYearRef' => ['required', 'integer'],
             'LedgerRef' => ['required', 'integer'],
             'VoucherTypeRef' => ['required', 'integer'],
@@ -149,6 +90,7 @@ class RegisterVoucherRequest extends FormRequest
             'Creator' => ['required', 'integer'],
             'CreatorName' => ['nullable', 'string'],
             'StateTitle' => ['nullable', 'string'],
+            'VoucherReferenceInfo' => ['nullable', 'array'],
             'VoucherItemData' => ['required', 'array', 'min:1'],
 
             // Only the accounting-relevant item fields stay required.
@@ -156,7 +98,7 @@ class RegisterVoucherRequest extends FormRequest
             'VoucherItemData.*.Debit' => ['required', 'numeric'],
             'VoucherItemData.*.Credit' => ['required', 'numeric'],
 
-            'VoucherItemData.*.VoucherItemID' => ['nullable', 'integer'],
+            'VoucherItemData.*.ID' => ['nullable', 'integer'],
             'VoucherItemData.*.CurrencyAmount' => ['nullable', 'numeric'],
             'VoucherItemData.*.BaseCurrencyAmount' => ['nullable', 'numeric'],
             'VoucherItemData.*.CurrencyCredit' => ['nullable', 'numeric'],
@@ -167,11 +109,16 @@ class RegisterVoucherRequest extends FormRequest
             'VoucherItemData.*.OperationalCurrencyExchangeRateRef' => ['nullable', 'integer'],
             'VoucherItemData.*.BaseCurrencyExchangeRate' => ['nullable', 'numeric'],
             'VoucherItemData.*.BaseCurrencyExchangeRateRef' => ['nullable', 'integer'],
-            'VoucherItemData.*.DL' => ['nullable', 'string'],
-            'VoucherItemData.*.DLTypeRef' => ['nullable', 'integer'],
             'VoucherItemData.*.Description' => ['nullable', 'string'],
             'VoucherItemData.*.Description_En' => ['nullable', 'string'],
-            'VoucherItemData.*.FollowUpDate' => ['nullable', 'string'],
+            'VoucherItemData.*.ExtraInfo' => ['nullable', 'array'],
+            'VoucherItemData.*.FollowUpDate' => ['nullable', function (string $attribute, mixed $value, \Closure $fail): void {
+                try {
+                    $this->asWcfDate($value);
+                } catch (Throwable) {
+                    $fail("The {$attribute} field must be a valid date or Unix timestamp.");
+                }
+            }],
             'VoucherItemData.*.FollowUpNumber' => ['nullable', 'string'],
             'VoucherItemData.*.RowNumber' => ['nullable', 'integer'],
             'VoucherItemData.*.SLCode' => ['nullable', 'string'],
@@ -187,7 +134,6 @@ class RegisterVoucherRequest extends FormRequest
             'VoucherItemData.*.SLTitle' => ['nullable', 'string'],
             'VoucherItemData.*.IsSLTraceable' => ['nullable', 'boolean'],
             'VoucherItemData.*.OperationalCurrencyPrecision' => ['nullable', 'integer'],
-            'VoucherItemData.*.DLLevelTitle' => ['nullable', 'string'],
             'VoucherItemData.*.CurrencyPrecision' => ['nullable', 'integer'],
             'VoucherItemData.*.CurrencyTitle' => ['nullable', 'string'],
             'VoucherItemData.*.BaseCurrencyPrecision' => ['nullable', 'integer'],
@@ -195,6 +141,14 @@ class RegisterVoucherRequest extends FormRequest
             'VoucherItemData.*.NumberOfSLDLLevels' => ['nullable', 'integer'],
             'VoucherItemData.*.Quantity' => ['nullable', 'numeric'],
         ];
+
+        foreach (range(4, 20) as $level) {
+            $rules["VoucherItemData.*.DL{$level}"] = ['nullable', 'string'];
+            $rules["VoucherItemData.*.DLLevel{$level}Title"] = ['nullable', 'string'];
+            $rules["VoucherItemData.*.DLTypeRef{$level}"] = ['nullable', 'integer'];
+        }
+
+        return $rules;
     }
 
     public function toDto(): RegisterVoucherData
@@ -203,26 +157,28 @@ class RegisterVoucherRequest extends FormRequest
 
         return new RegisterVoucherData(
             BranchRef: (int) $data['BranchRef'],
-            Date: $this->asTimestamp($data['Date'] ?? null),
-            Description: $this->asString($data['Description'] ?? null),
-            Description_En: $this->asString($data['Description_En'] ?? null),
             FiscalYearRef: (int) $data['FiscalYearRef'],
             LedgerRef: (int) $data['LedgerRef'],
             VoucherTypeRef: (int) $data['VoucherTypeRef'],
-            VoucherTypeOwnerSystem: $this->asString($data['VoucherTypeOwnerSystem'] ?? null),
             VoucherTypeCode: (int) $data['VoucherTypeCode'],
             Number: (int) $data['Number'],
-            AuxiliaryNumber: $this->asString($data['AuxiliaryNumber'] ?? null),
-            IsCurrencyBased: $this->asBool($data['IsCurrencyBased'] ?? null),
             State: VoucherStateEnum::from((int) $data['State']),
-            IsExternal: $this->asBool($data['IsExternal'] ?? null),
             Creator: (int) $data['Creator'],
-            CreatorName: $this->asString($data['CreatorName'] ?? null),
-            StateTitle: $this->asString($data['StateTitle'] ?? null),
             VoucherItemData: array_values(array_map(
                 fn(array $item): VoucherItemData => $this->toItemDto($item),
                 $data['VoucherItemData'],
             )),
+            Date: $this->asWcfDate($data['Date'] ?? null),
+            Description: $this->asNullableString($data['Description'] ?? null),
+            Description_En: $this->asNullableString($data['Description_En'] ?? null),
+            VoucherTypeOwnerSystem: $this->asNullableString($data['VoucherTypeOwnerSystem'] ?? null),
+            AuxiliaryNumber: $this->asNullableString($data['AuxiliaryNumber'] ?? null),
+            IsCurrencyBased: $this->asNullableBool($data['IsCurrencyBased'] ?? null),
+            IsExternal: $this->asNullableBool($data['IsExternal'] ?? null),
+            CreatorName: $this->asNullableString($data['CreatorName'] ?? null),
+            StateTitle: $this->asNullableString($data['StateTitle'] ?? null),
+            ExtraInfo: $data['ExtraInfo'] ?? null,
+            VoucherReferenceInfo: $data['VoucherReferenceInfo'] ?? null,
         );
     }
 
@@ -232,62 +188,67 @@ class RegisterVoucherRequest extends FormRequest
     private function toItemDto(array $item): VoucherItemData
     {
         return new VoucherItemData(
-            VoucherItemID: $this->asInt($item['VoucherItemID'] ?? null),
-            SLRef: $this->asNullableInt($item['SLRef'] ?? null),
             Debit: $this->asFloat($item['Debit'] ?? null),
             Credit: $this->asFloat($item['Credit'] ?? null),
-            CurrencyAmount: $this->asFloat($item['CurrencyAmount'] ?? null),
-            BaseCurrencyAmount: $this->asFloat($item['BaseCurrencyAmount'] ?? null),
-            CurrencyCredit: $this->asFloat($item['CurrencyCredit'] ?? null),
-            CurrencyDebit: $this->asFloat($item['CurrencyDebit'] ?? null),
-            CurrencyRef: $this->asInt($item['CurrencyRef'] ?? null),
-            BaseCurrencyRef: $this->asInt($item['BaseCurrencyRef'] ?? null),
-            OperationalCurrencyExchangeRate: $this->asFloat($item['OperationalCurrencyExchangeRate'] ?? null),
-            OperationalCurrencyExchangeRateRef: $this->asInt($item['OperationalCurrencyExchangeRateRef'] ?? null),
-            BaseCurrencyExchangeRate: $this->asFloat($item['BaseCurrencyExchangeRate'] ?? null),
-            BaseCurrencyExchangeRateRef: $this->asInt($item['BaseCurrencyExchangeRateRef'] ?? null),
-            DL: $this->asString($item['DL'] ?? null),
-            DLTypeRef: $this->asInt($item['DLTypeRef'] ?? null),
-            Description: $this->asString($item['Description'] ?? null),
-            Description_En: $this->asString($item['Description_En'] ?? null),
-            FollowUpDate: $this->asString($item['FollowUpDate'] ?? null),
-            FollowUpNumber: $this->asString($item['FollowUpNumber'] ?? null),
-            RowNumber: $this->asInt($item['RowNumber'] ?? null),
-            SLCode: $this->asString($item['SLCode'] ?? null),
-            ExtraData: $this->asString($item['ExtraData'] ?? null),
-            TaxAccountType: $this->asInt($item['TaxAccountType'] ?? null),
-            TransactionType: $this->asInt($item['TransactionType'] ?? null),
-            TaxStateType: $this->asInt($item['TaxStateType'] ?? null),
-            PurchaseOrSale: $this->asInt($item['PurchaseOrSale'] ?? null),
-            ItemOrService: $this->asInt($item['ItemOrService'] ?? null),
-            PartyRef: $this->asInt($item['PartyRef'] ?? null),
-            TaxAmount: $this->asFloat($item['TaxAmount'] ?? null),
-            TollAmount: $this->asFloat($item['TollAmount'] ?? null),
-            SLTitle: $this->asString($item['SLTitle'] ?? null),
-            IsSLTraceable: $this->asBool($item['IsSLTraceable'] ?? null),
-            OperationalCurrencyPrecision: $this->asInt($item['OperationalCurrencyPrecision'] ?? null),
-            DLLevelTitle: $this->asString($item['DLLevelTitle'] ?? null),
-            CurrencyPrecision: $this->asInt($item['CurrencyPrecision'] ?? null),
-            CurrencyTitle: $this->asString($item['CurrencyTitle'] ?? null),
-            BaseCurrencyPrecision: $this->asInt($item['BaseCurrencyPrecision'] ?? null),
-            BaseCurrencyTitle: $this->asString($item['BaseCurrencyTitle'] ?? null),
-            NumberOfSLDLLevels: $this->asInt($item['NumberOfSLDLLevels'] ?? null),
-            Quantity: $this->asFloat($item['Quantity'] ?? null),
+            RowNumber: $this->asNullableInt($item['RowNumber'] ?? null),
+            ID: $this->asNullableInt($item['ID'] ?? null),
+            BaseCurrencyAmount: $this->asNullableFloat($item['BaseCurrencyAmount'] ?? null),
+            BaseCurrencyExchangeRate: $this->asNullableFloat($item['BaseCurrencyExchangeRate'] ?? null),
+            BaseCurrencyExchangeRateRef: $this->asNullableInt($item['BaseCurrencyExchangeRateRef'] ?? null),
+            BaseCurrencyPrecision: $this->asNullableInt($item['BaseCurrencyPrecision'] ?? null),
+            BaseCurrencyRef: $this->asNullableInt($item['BaseCurrencyRef'] ?? null),
+            BaseCurrencyTitle: $this->asNullableString($item['BaseCurrencyTitle'] ?? null),
+            CurrencyAmount: $this->asNullableFloat($item['CurrencyAmount'] ?? null),
+            CurrencyCredit: $this->asNullableFloat($item['CurrencyCredit'] ?? null),
+            CurrencyDebit: $this->asNullableFloat($item['CurrencyDebit'] ?? null),
+            CurrencyPrecision: $this->asNullableInt($item['CurrencyPrecision'] ?? null),
+            CurrencyRef: $this->asNullableInt($item['CurrencyRef'] ?? null),
+            CurrencyTitle: $this->asNullableString($item['CurrencyTitle'] ?? null),
+            detailLevels: $this->detailLevels($item),
+            Description: $this->asNullableString($item['Description'] ?? null),
+            Description_En: $this->asNullableString($item['Description_En'] ?? null),
+            ExtraData: $this->asNullableString($item['ExtraData'] ?? null),
+            ExtraInfo: $item['ExtraInfo'] ?? null,
+            FollowUpDate: $this->asWcfDate($item['FollowUpDate'] ?? null),
+            FollowUpNumber: $this->asNullableString($item['FollowUpNumber'] ?? null),
+            IsSLTraceable: $this->asNullableBool($item['IsSLTraceable'] ?? null),
+            ItemOrService: $this->asNullableInt($item['ItemOrService'] ?? null),
+            NumberOfSLDLLevels: $this->asNullableInt($item['NumberOfSLDLLevels'] ?? null),
+            OperationalCurrencyExchangeRate: $this->asNullableFloat($item['OperationalCurrencyExchangeRate'] ?? null),
+            OperationalCurrencyExchangeRateRef: $this->asNullableInt($item['OperationalCurrencyExchangeRateRef'] ?? null),
+            OperationalCurrencyPrecision: $this->asNullableInt($item['OperationalCurrencyPrecision'] ?? null),
+            PartyRef: $this->asNullableInt($item['PartyRef'] ?? null),
+            PurchaseOrSale: $this->asNullableInt($item['PurchaseOrSale'] ?? null),
+            Quantity: $this->asNullableFloat($item['Quantity'] ?? null),
+            SLCode: $this->asNullableString($item['SLCode'] ?? null),
+            SLRef: $this->asNullableInt(/*$item['SLRef'] ??*/null),
+            SLTitle: $this->asNullableString($item['SLTitle'] ?? null),
+            TaxAccountType: $this->asNullableInt($item['TaxAccountType'] ?? null),
+            TaxAmount: $this->asNullableFloat($item['TaxAmount'] ?? null),
+            TaxStateType: $this->asNullableInt($item['TaxStateType'] ?? null),
+            TollAmount: $this->asNullableFloat($item['TollAmount'] ?? null),
+            TransactionType: $this->asNullableInt($item['TransactionType'] ?? null),
         );
     }
 
-    /**
-     * Item defaults, including the ones that come from configuration.
-     *
-     * @return array<string, string|int|float|bool>
-     */
-    private function itemDefaults(): array
+    /** @return array<int, array{DL?: string|null, DLLevelTitle?: string|null, DLTypeRef?: int|null}> */
+    private function detailLevels(array $item): array
     {
-        return self::ITEM_DEFAULTS + [
-            'BaseCurrencyRef' => (int) config('services.voucher.defaults.base_currency_ref', 0),
-            'BaseCurrencyPrecision' => (int) config('services.voucher.defaults.base_currency_precision', 0),
-            'BaseCurrencyTitle' => (string) config('services.voucher.defaults.base_currency_title', ''),
-        ];
+        $details = [];
+
+        foreach (range(4, 20) as $level) {
+            $detail = array_filter([
+                'DL' => $this->asNullableString($item["DL{$level}"] ?? null),
+                'DLLevelTitle' => $this->asNullableString($item["DLLevel{$level}Title"] ?? null),
+                'DLTypeRef' => $this->asNullableInt($item["DLTypeRef{$level}"] ?? null),
+            ], static fn(mixed $value): bool => $value !== null);
+
+            if ($detail !== []) {
+                $details[$level] = $detail;
+            }
+        }
+
+        return $details;
     }
 
     private function isBlank(mixed $value): bool
@@ -295,9 +256,9 @@ class RegisterVoucherRequest extends FormRequest
         return $value === null || $value === '';
     }
 
-    private function asString(mixed $value): string
+    private function asNullableString(mixed $value): ?string
     {
-        return $value === null ? '' : (string) $value;
+        return $this->isBlank($value) ? null : (string) $value;
     }
 
     private function asInt(mixed $value): int
@@ -310,13 +271,9 @@ class RegisterVoucherRequest extends FormRequest
         return $this->isBlank($value) ? null : (int) $value;
     }
 
-    private function asTimestamp(mixed $value): int
+    private function asNullableFloat(mixed $value): ?float
     {
-        if ($this->isBlank($value)) {
-            return 0;
-        }
-
-        return strtotime((string) $value);
+        return $this->isBlank($value) ? null : (float) $value;
     }
 
     private function asFloat(mixed $value): float
@@ -324,8 +281,35 @@ class RegisterVoucherRequest extends FormRequest
         return (float) ($value ?? 0);
     }
 
-    private function asBool(mixed $value): bool
+    private function asNullableBool(mixed $value): ?bool
     {
-        return filter_var($value ?? false, FILTER_VALIDATE_BOOLEAN);
+        return $this->isBlank($value) ? null : filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private function asWcfDate(mixed $value): ?string
+    {
+        if ($this->isBlank($value)) {
+            return null;
+        }
+
+        $value = (string) $value;
+
+        if (preg_match('/^\\/Date\\(-?\\d+(?:[+-]\\d{4})?\\)\\/$/', $value) === 1) {
+            return $value;
+        }
+
+        $timezone = new DateTimeZone((string) config('services.voucher.timezone', 'Asia/Tehran'));
+
+        if (is_numeric($value)) {
+            $numericTimestamp = (int) $value;
+            $isMilliseconds = abs($numericTimestamp) >= 100_000_000_000;
+            $milliseconds = $isMilliseconds ? $numericTimestamp : $numericTimestamp * 1000;
+            $date = (new DateTimeImmutable('@' . intdiv($milliseconds, 1000)))->setTimezone($timezone);
+        } else {
+            $date = (new DateTimeImmutable($value, $timezone))->setTimezone($timezone);
+            $milliseconds = ($date->getTimestamp() * 1000) + (int) $date->format('v');
+        }
+
+        return sprintf('/Date(%d%s)/', $milliseconds, $date->format('O'));
     }
 }

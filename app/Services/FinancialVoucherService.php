@@ -339,7 +339,13 @@ class FinancialVoucherService
 
         Log::info('Rahkaran data posting', [...$data, 'url' => $this->baseUrl . $url]);
 
-        return $request->withBody(json_encode($data, JSON_UNESCAPED_UNICODE))
+        $response = $request->withBody(json_encode($data, JSON_UNESCAPED_UNICODE))
             ->post($this->baseUrl . $url);
+
+        Log::info('Rahkaran data response', [
+            'body' => $response->body(),
+        ]);
+
+        return $response;
     }
 }

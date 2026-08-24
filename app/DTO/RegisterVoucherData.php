@@ -7,75 +7,76 @@ use App\Enums\VoucherStateEnum;
 class RegisterVoucherData
 {
     /**
-     * @param VoucherItemData[] $VoucherItemData
+     * @param  list<VoucherItemData>  $VoucherItemData
+     * @param  array<string, mixed>|null  $ExtraInfo
+     * @param  list<array<string, mixed>>|null  $VoucherReferenceInfo
      */
     public function __construct(
         public int $BranchRef,
-        public string $Date,
-        public string $Description,
-        public string $Description_En,
         public int $FiscalYearRef,
         public int $LedgerRef,
         public int $VoucherTypeRef,
-        public string $VoucherTypeOwnerSystem,
         public int $VoucherTypeCode,
         public int $Number,
-        public string $AuxiliaryNumber,
-        public bool $IsCurrencyBased,
         public VoucherStateEnum $State,
-        public bool $IsExternal,
         public int $Creator,
-        public string $CreatorName,
-        public string $StateTitle,
         public array $VoucherItemData,
+        public ?string $Date = null,
+        public ?string $Description = null,
+        public ?string $Description_En = null,
+        public ?string $VoucherTypeOwnerSystem = null,
+        public ?string $AuxiliaryNumber = null,
+        public ?bool $IsCurrencyBased = null,
+        public ?bool $IsExternal = null,
+        public ?string $CreatorName = null,
+        public ?string $StateTitle = null,
+        public ?array $ExtraInfo = null,
+        public ?array $VoucherReferenceInfo = null,
     ) {}
 
-    /**
-     * @return array{
-     *       BranchRef: int,
-     *       Date: string,
-     *       Description: string,
-     *       Description_En: string,
-     *       FiscalYearRef: int,
-     *       LedgerRef: int,
-     *       VoucherTypeRef: int,
-     *       VoucherTypeOwnerSystem: string,
-     *       VoucherTypeCode: int,
-     *       Number: int,
-     *       AuxiliaryNumber: string,
-     *       IsCurrencyBased: bool,
-     *       State: VoucherStateEnum,
-     *       IsExternal: bool,
-     *       Creator: int,
-     *       CreatorName: string,
-     *       StateTitle: string,
-     *       VoucherItems: VoucherItemData
-     *   }
-     */
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return [
+        return self::withoutNulls([
+            'AuxiliaryNumber' => $this->AuxiliaryNumber,
             'BranchRef' => $this->BranchRef,
+            'Creator' => $this->Creator,
+            'CreatorName' => $this->CreatorName,
             'Date' => $this->Date,
             'Description' => $this->Description,
             'Description_En' => $this->Description_En,
+            'ExtraInfo' => $this->ExtraInfo,
             'FiscalYearRef' => $this->FiscalYearRef,
-            'LedgerRef' => $this->LedgerRef,
-            'VoucherTypeRef' => $this->VoucherTypeRef,
-            'VoucherTypeOwnerSystem' => $this->VoucherTypeOwnerSystem,
-            'VoucherTypeCode' => $this->VoucherTypeCode,
-            'Number' => $this->Number,
-            'AuxiliaryNumber' => $this->AuxiliaryNumber,
             'IsCurrencyBased' => $this->IsCurrencyBased,
-            'State' => $this->State->value,
             'IsExternal' => $this->IsExternal,
-            'Creator' => $this->Creator,
-            'CreatorName' => $this->CreatorName,
+            'LedgerRef' => $this->LedgerRef,
+            'Number' => $this->Number,
+            'State' => $this->State->value,
             'StateTitle' => $this->StateTitle,
             'VoucherItems' => array_map(
-                fn(VoucherItemData $item) => $item->toArray(),
-                $this->VoucherItemData
+                fn (VoucherItemData $item): array => $item->toArray(),
+                $this->VoucherItemData,
             ),
-        ];
+            'VoucherReferenceInfo' => $this->VoucherReferenceInfo,
+            'VoucherTypeCode' => $this->VoucherTypeCode,
+            'VoucherTypeOwnerSystem' => $this->VoucherTypeOwnerSystem,
+            'VoucherTypeRef' => $this->VoucherTypeRef,
+        ]);
+    }
+
+    /** @return array<mixed> */
+    private static function withoutNulls(array $data): array
+    {
+        $isList = array_is_list($data);
+
+        foreach ($data as $key => $value) {
+            if ($value === null) {
+                unset($data[$key]);
+            } elseif (is_array($value)) {
+                $data[$key] = self::withoutNulls($value);
+            }
+        }
+
+        return $isList ? array_values($data) : $data;
     }
 }

@@ -96,11 +96,24 @@ class FinancialVoucherApiTest extends TestCase
         $service = Mockery::mock(FinancialVoucherService::class);
         $service->shouldReceive('register_voucher')
             ->once()
-            ->with(Mockery::on(fn ($data): bool => $data instanceof RegisterVoucherData
-                && $data->State->value === 1
-                && $data->Date === strtotime('2026-07-21')
-                && $data->VoucherItemData[0]->SLRef === null
-                && count($data->VoucherItemData) === 1))
+            ->with(Mockery::on(function ($data): bool {
+                if (! $data instanceof RegisterVoucherData) {
+                    return false;
+                }
+
+                $payload = $data->toArray();
+                $item = $payload['VoucherItems'][0];
+
+                return $data->State->value === 1
+                    && $data->Date === '/Date(1765465335000+0330)/'
+                    && $item['ID'] === 0
+                    && $item['DL4'] === '1001'
+                    && $item['DLTypeRef4'] === 1
+                    && ! array_key_exists('SLRef', $item)
+                    && ! array_key_exists('VoucherItemID', $item)
+                    && ! array_key_exists('DL', $item)
+                    && count($data->VoucherItemData) === 1;
+            }))
             ->andReturn(['VoucherID' => 99]);
         $this->app->instance(FinancialVoucherService::class, $service);
 
@@ -119,13 +132,15 @@ class FinancialVoucherApiTest extends TestCase
                 $item = $data->VoucherItemData[0];
 
                 return $data instanceof RegisterVoucherData
-                    && $data->IsCurrencyBased === false
-                    && $data->CreatorName === ''
-                    && $item->VoucherItemID === 0
-                    && $item->BaseCurrencyExchangeRate === 1.0
-                    && $item->RowNumber === 1
-                    && $item->IsSLTraceable === false
-                    && $item->CurrencyTitle === '';
+                    && $data->IsCurrencyBased === null
+                    && $data->CreatorName === null
+                    && $item->ID === null
+                    && $item->BaseCurrencyExchangeRate === null
+                    && $item->RowNumber === null
+                    && $item->IsSLTraceable === null
+                    && $item->CurrencyTitle === null
+                    && ! array_key_exists('Date', $data->toArray())
+                    && $item->toArray()['SLRef'] === 1;
             }))
             ->andReturn(['VoucherID' => 100]);
         $this->app->instance(FinancialVoucherService::class, $service);
@@ -199,7 +214,7 @@ class FinancialVoucherApiTest extends TestCase
     {
         return [
             'BranchRef' => 1,
-            'Date' => '2026-07-21',
+            'Date' => 1765465335,
             'Description' => 'Test voucher',
             'Description_En' => '',
             'FiscalYearRef' => 1,
@@ -216,7 +231,7 @@ class FinancialVoucherApiTest extends TestCase
             'CreatorName' => 'API',
             'StateTitle' => '',
             'VoucherItemData' => [[
-                'VoucherItemID' => 0,
+                'ID' => 0,
                 'SLRef' => null,
                 'Debit' => 1000,
                 'Credit' => 0,
@@ -230,8 +245,8 @@ class FinancialVoucherApiTest extends TestCase
                 'OperationalCurrencyExchangeRateRef' => 1,
                 'BaseCurrencyExchangeRate' => 1,
                 'BaseCurrencyExchangeRateRef' => 1,
-                'DL' => '1001',
-                'DLTypeRef' => 1,
+                'DL4' => '1001',
+                'DLTypeRef4' => 1,
                 'Description' => 'Test row',
                 'Description_En' => '',
                 'FollowUpDate' => '',
@@ -250,7 +265,7 @@ class FinancialVoucherApiTest extends TestCase
                 'SLTitle' => '',
                 'IsSLTraceable' => false,
                 'OperationalCurrencyPrecision' => 0,
-                'DLLevelTitle' => '',
+                'DLLevel4Title' => '',
                 'CurrencyPrecision' => 0,
                 'CurrencyTitle' => '',
                 'BaseCurrencyPrecision' => 0,

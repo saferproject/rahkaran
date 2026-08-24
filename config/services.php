@@ -39,13 +39,7 @@ return [
         'base_url' => env('AVAN_SEIR_API_URL'),
         'username' => env('AVAN_SEIR_USERNAME'),
         'password' => env('AVAN_SEIR_PASSWORD'),
-
-        // Values used for voucher item fields the caller does not send.
-        'defaults' => [
-            'base_currency_ref' => (int) env('AVAN_SEIR_BASE_CURRENCY_REF', 0),
-            'base_currency_precision' => (int) env('AVAN_SEIR_BASE_CURRENCY_PRECISION', 0),
-            'base_currency_title' => (string) env('AVAN_SEIR_BASE_CURRENCY_TITLE', ''),
-        ],
+        'timezone' => env('AVAN_SEIR_TIMEZONE', 'Asia/Tehran'),
     ],
 
 ];

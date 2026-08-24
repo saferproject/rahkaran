@@ -4,97 +4,124 @@ namespace App\DTO;
 
 class VoucherItemData
 {
+    /**
+     * @param  array<int, array{DL?: string|null, DLLevelTitle?: string|null, DLTypeRef?: int|null}>  $detailLevels
+     * @param  array<string, mixed>|null  $ExtraInfo
+     */
     public function __construct(
-        public int $VoucherItemID,
-        public ?int $SLRef,
         public float $Debit,
         public float $Credit,
-        public float $CurrencyAmount,
-        public float $BaseCurrencyAmount,
-        public float $CurrencyCredit,
-        public float $CurrencyDebit,
-        public int $CurrencyRef,
-        public int $BaseCurrencyRef,
-        public float $OperationalCurrencyExchangeRate,
-        public int $OperationalCurrencyExchangeRateRef,
-        public float $BaseCurrencyExchangeRate,
-        public int $BaseCurrencyExchangeRateRef,
-        public string $DL,
-        public int $DLTypeRef,
-        public string $Description,
-        public string $Description_En,
-        public string $FollowUpDate,
-        public string $FollowUpNumber,
-        public int $RowNumber,
-        public string $SLCode,
-        public string $ExtraData,
-        public int $TaxAccountType,
-        public int $TransactionType,
-        public int $TaxStateType,
-        public int $PurchaseOrSale,
-        public int $ItemOrService,
-        public int $PartyRef,
-        public float $TaxAmount,
-        public float $TollAmount,
-        public string $SLTitle,
-        public bool $IsSLTraceable,
-        public int $OperationalCurrencyPrecision,
-        public string $DLLevelTitle,
-        public int $CurrencyPrecision,
-        public string $CurrencyTitle,
-        public int $BaseCurrencyPrecision,
-        public string $BaseCurrencyTitle,
-        public int $NumberOfSLDLLevels,
-        public float $Quantity,
+        public ?int $RowNumber = null,
+        public ?int $ID = null,
+        public ?float $BaseCurrencyAmount = null,
+        public ?float $BaseCurrencyExchangeRate = null,
+        public ?int $BaseCurrencyExchangeRateRef = null,
+        public ?int $BaseCurrencyPrecision = null,
+        public ?int $BaseCurrencyRef = null,
+        public ?string $BaseCurrencyTitle = null,
+        public ?float $CurrencyAmount = null,
+        public ?float $CurrencyCredit = null,
+        public ?float $CurrencyDebit = null,
+        public ?int $CurrencyPrecision = null,
+        public ?int $CurrencyRef = null,
+        public ?string $CurrencyTitle = null,
+        public array $detailLevels = [],
+        public ?string $Description = null,
+        public ?string $Description_En = null,
+        public ?string $ExtraData = null,
+        public ?array $ExtraInfo = null,
+        public ?string $FollowUpDate = null,
+        public ?string $FollowUpNumber = null,
+        public ?bool $IsSLTraceable = null,
+        public ?int $ItemOrService = null,
+        public ?int $NumberOfSLDLLevels = null,
+        public ?float $OperationalCurrencyExchangeRate = null,
+        public ?int $OperationalCurrencyExchangeRateRef = null,
+        public ?int $OperationalCurrencyPrecision = null,
+        public ?int $PartyRef = null,
+        public ?int $PurchaseOrSale = null,
+        public ?float $Quantity = null,
+        public ?string $SLCode = null,
+        public ?int $SLRef = null,
+        public ?string $SLTitle = null,
+        public ?int $TaxAccountType = null,
+        public ?float $TaxAmount = null,
+        public ?int $TaxStateType = null,
+        public ?float $TollAmount = null,
+        public ?int $TransactionType = null,
     ) {}
 
-    /**
-     * @return array{
-     *           VoucherItemID: int,
-     *           SLRef: int|null,
-     *           Debit: float,
-     *           Credit: float,
-     *           CurrencyAmount: float,
-     *           BaseCurrencyAmount: float,
-     *           CurrencyCredit: float,
-     *           CurrencyDebit: float,
-     *           CurrencyRef: int,
-     *           BaseCurrencyRef: int,
-     *           OperationalCurrencyExchangeRate: float,
-     *           OperationalCurrencyExchangeRateRef: int,
-     *           BaseCurrencyExchangeRate: float,
-     *           BaseCurrencyExchangeRateRef: int,
-     *           DL: string,
-     *           DLTypeRef: int,
-     *           Description: string,
-     *           Description_En: string,
-     *           FollowUpDate: string,
-     *           FollowUpNumber: string,
-     *           RowNumber: int,
-     *           SLCode: string,
-     *           ExtraData: string,
-     *           TaxAccountType: int,
-     *           TransactionType: int,
-     *           TaxStateType: int,
-     *           PurchaseOrSale: int,
-     *           ItemOrService: int,
-     *           PartyRef: int,
-     *           TaxAmount: float,
-     *           TollAmount: float,
-     *           SLTitle: string,
-     *           IsSLTraceable: bool,
-     *           OperationalCurrencyPrecision: int,
-     *           DLLevelTitle: string,
-     *           CurrencyPrecision: int,
-     *           CurrencyTitle: string,
-     *           BaseCurrencyPrecision: int,
-     *           BaseCurrencyTitle: string,
-     *           NumberOfSLDLLevels: int,
-     *           Quantity: int,
-     *       }
-     */
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return get_object_vars($this);
+        $data = [
+            'BaseCurrencyAmount' => $this->BaseCurrencyAmount,
+            'BaseCurrencyExchangeRate' => $this->BaseCurrencyExchangeRate,
+            'BaseCurrencyExchangeRateRef' => $this->BaseCurrencyExchangeRateRef,
+            'BaseCurrencyPrecision' => $this->BaseCurrencyPrecision,
+            'BaseCurrencyRef' => $this->BaseCurrencyRef,
+            'BaseCurrencyTitle' => $this->BaseCurrencyTitle,
+            'Credit' => $this->Credit,
+            'CurrencyAmount' => $this->CurrencyAmount,
+            'CurrencyCredit' => $this->CurrencyCredit,
+            'CurrencyDebit' => $this->CurrencyDebit,
+            'CurrencyPrecision' => $this->CurrencyPrecision,
+            'CurrencyRef' => $this->CurrencyRef,
+            'CurrencyTitle' => $this->CurrencyTitle,
+        ];
+
+        foreach (range(4, 20) as $level) {
+            $detail = $this->detailLevels[$level] ?? [];
+            $data["DL{$level}"] = $detail['DL'] ?? null;
+            $data["DLLevel{$level}Title"] = $detail['DLLevelTitle'] ?? null;
+            $data["DLTypeRef{$level}"] = $detail['DLTypeRef'] ?? null;
+        }
+
+        $data += [
+            'Debit' => $this->Debit,
+            'Description' => $this->Description,
+            'Description_En' => $this->Description_En,
+            'ExtraData' => $this->ExtraData,
+            'ExtraInfo' => $this->ExtraInfo,
+            'FollowUpDate' => $this->FollowUpDate,
+            'FollowUpNumber' => $this->FollowUpNumber,
+            'ID' => $this->ID,
+            'IsSLTraceable' => $this->IsSLTraceable,
+            'ItemOrService' => $this->ItemOrService,
+            'NumberOfSLDLLevels' => $this->NumberOfSLDLLevels,
+            'OperationalCurrencyExchangeRate' => $this->OperationalCurrencyExchangeRate,
+            'OperationalCurrencyExchangeRateRef' => $this->OperationalCurrencyExchangeRateRef,
+            'OperationalCurrencyPrecision' => $this->OperationalCurrencyPrecision,
+            'PartyRef' => $this->PartyRef,
+            'PurchaseOrSale' => $this->PurchaseOrSale,
+            'Quantity' => $this->Quantity,
+            'RowNumber' => $this->RowNumber,
+            'SLCode' => $this->SLCode,
+            'SLRef' => $this->SLRef,
+            'SLTitle' => $this->SLTitle,
+            'TaxAccountType' => $this->TaxAccountType,
+            'TaxAmount' => $this->TaxAmount,
+            'TaxStateType' => $this->TaxStateType,
+            'TollAmount' => $this->TollAmount,
+            'TransactionType' => $this->TransactionType,
+        ];
+
+        return self::withoutNulls($data);
+    }
+
+    /** @return array<mixed> */
+    private static function withoutNulls(array $data): array
+    {
+        $isList = array_is_list($data);
+
+        foreach ($data as $key => $value) {
+            if ($value === null) {
+                unset($data[$key]);
+            } elseif (is_array($value)) {
+                $data[$key] = self::withoutNulls($value);
+            }
+        }
+
+        return $isList ? array_values($data) : $data;
     }
 }
