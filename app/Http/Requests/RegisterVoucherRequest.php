@@ -176,7 +176,6 @@ class RegisterVoucherRequest extends FormRequest
                         'Exactly one of Debit or Credit must be greater than zero.',
                     );
                 }
-
             }
         });
     }
@@ -195,7 +194,7 @@ class RegisterVoucherRequest extends FormRequest
             State: VoucherStateEnum::from((int) $data['State']),
             Creator: (int) $data['Creator'],
             VoucherItemData: array_values(array_map(
-                fn (array $item): VoucherItemData => $this->toItemDto($item),
+                fn(array $item): VoucherItemData => $this->toItemDto($item),
                 $data['VoucherItemData'],
             )),
             Date: $this->asWcfDate($data['Date'] ?? null),
@@ -206,7 +205,7 @@ class RegisterVoucherRequest extends FormRequest
             IsCurrencyBased: $this->asNullableBool($data['IsCurrencyBased'] ?? null),
             IsExternal: $this->asNullableBool($data['IsExternal'] ?? null),
             CreatorName: $this->asNullableString($data['CreatorName'] ?? null),
-            StateTitle: $this->asNullableString($data['StateTitle'] ?? null),
+            StateTitle: $this->asNullableString(/*$data['StateTitle'] ??*/null),
             ExtraInfo: $data['ExtraInfo'] ?? null,
             VoucherReferenceInfo: $data['VoucherReferenceInfo'] ?? null,
         );
@@ -243,15 +242,15 @@ class RegisterVoucherRequest extends FormRequest
             FollowUpNumber: $this->asNullableString($item['FollowUpNumber'] ?? null),
             IsSLTraceable: $this->asNullableBool($item['IsSLTraceable'] ?? null),
             ItemOrService: $this->asNullableInt($item['ItemOrService'] ?? null),
-            NumberOfSLDLLevels: $this->asNullableInt($item['NumberOfSLDLLevels'] ?? null),
+            NumberOfSLDLLevels: $this->asNullableInt(/*$item['NumberOfSLDLLevels'] ??*/null),
             OperationalCurrencyExchangeRate: $this->asNullableFloat($item['OperationalCurrencyExchangeRate'] ?? null),
             OperationalCurrencyExchangeRateRef: $this->asNullableInt($item['OperationalCurrencyExchangeRateRef'] ?? null),
             OperationalCurrencyPrecision: $this->asNullableInt($item['OperationalCurrencyPrecision'] ?? null),
             PartyRef: $this->asNullableInt($item['PartyRef'] ?? null),
             PurchaseOrSale: $this->asNullableInt($item['PurchaseOrSale'] ?? null),
-            Quantity: $this->asNullableFloat($item['Quantity'] ?? null),
+            Quantity: $this->asNullableFloat(/*$item['Quantity'] ??*/null),
             SLCode: $this->asNullableString($item['SLCode'] ?? null),
-            SLRef: $this->asNullableInt(/* $item['SLRef'] ?? */ null),
+            SLRef: $this->asNullableInt(/* $item['SLRef'] ?? */null),
             SLTitle: $this->asNullableString($item['SLTitle'] ?? null),
             TaxAccountType: $this->asNullableInt($item['TaxAccountType'] ?? null),
             TaxAmount: $this->asNullableFloat($item['TaxAmount'] ?? null),
@@ -271,7 +270,7 @@ class RegisterVoucherRequest extends FormRequest
                 'DL' => $this->asNullableString($item["DL{$level}"] ?? null),
                 'DLLevelTitle' => $this->asNullableString($item["DLLevel{$level}Title"] ?? null),
                 'DLTypeRef' => $this->asNullableInt($item["DLTypeRef{$level}"] ?? null),
-            ], static fn (mixed $value): bool => $value !== null);
+            ], static fn(mixed $value): bool => $value !== null);
 
             if ($detail !== []) {
                 $details[$level] = $detail;
@@ -350,7 +349,7 @@ class RegisterVoucherRequest extends FormRequest
             $numericTimestamp = (int) $value;
             $isMilliseconds = abs($numericTimestamp) >= 100_000_000_000;
             $milliseconds = $isMilliseconds ? $numericTimestamp : $numericTimestamp * 1000;
-            $date = (new DateTimeImmutable('@'.intdiv($milliseconds, 1000)))->setTimezone($timezone);
+            $date = (new DateTimeImmutable('@' . intdiv($milliseconds, 1000)))->setTimezone($timezone);
         } else {
             $date = (new DateTimeImmutable($value, $timezone))->setTimezone($timezone);
             $milliseconds = ($date->getTimestamp() * 1000) + (int) $date->format('v');
