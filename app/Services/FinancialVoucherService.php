@@ -5,6 +5,7 @@ namespace App\Services;
 use App\DTO\GeneratePartyData;
 use App\DTO\RegisterDLData;
 use App\DTO\RegisterVoucherData;
+use App\Exceptions\RahkaranException;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\CookieJarInterface;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -33,26 +34,54 @@ class FinancialVoucherService
 
     public function register_voucher(RegisterVoucherData $data)
     {
-        return $this->httpPost(
+        return $this->result($this->httpPost(
             '/Financial/VoucherManagement/Services/VoucherService.svc/RegisterVoucher',
             $data->toArray()
-        )->json();
+        ));
     }
 
     public function register_dl(RegisterDLData $data)
     {
-        return $this->httpPost(
+        return $this->result($this->httpPost(
             '/Financial/COAManagement/Services/COAService.svc/RegisterDL',
             $data->toArray()
-        )->json();
+        ));
     }
 
     public function generate_party(GeneratePartyData $data)
     {
-        return $this->httpPost(
+        return $this->result($this->httpPost(
             '/Financial/PartyManagement/Services/PartyService.svc/GenerateParty',
             $data->toArray()
-        )->json();
+        ));
+    }
+
+    /**
+     * Rahkaran reports business failures with an HTTP 200 whose body is a JSON
+     * string holding a .NET exception dump. Without this check the caller
+     * receives such a failure as a successful registration.
+     *
+     * @throws RahkaranException
+     */
+    private function result(Response $response): mixed
+    {
+        $decoded = $response->json();
+        $body = is_string($decoded) ? $decoded : $response->body();
+
+        if ($response->failed() || (is_string($decoded) && preg_match('/^[A-Za-z0-9_.]*(Exception|Fault)\s*:/u', trim($decoded)) === 1)) {
+            $exception = RahkaranException::fromResponse($response->status(), $body);
+
+            Log::error('Rahkaran rejected the request.', [
+                'event' => 'rahkaran.request.rejected',
+                'http_status' => $response->status(),
+                'rahkaran_exception' => $exception->rahkaranException,
+                'reason' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
+        }
+
+        return $decoded;
     }
 
     /**
@@ -105,7 +134,7 @@ class FinancialVoucherService
             $stage = 'session_request';
             $stageStartedAt = microtime(true);
             $response = $client->get(
-                $this->baseUrl . '/Services/Framework/AuthenticationService.svc/session'
+                $this->baseUrl.'/Services/Framework/AuthenticationService.svc/session'
             );
 
             if ($response->failed()) {
@@ -146,7 +175,7 @@ class FinancialVoucherService
             $encryptedPassword = $this->encryptPassword(
                 $session['rsa']['M'],
                 $session['rsa']['E'],
-                $sessionId . '**' . $password
+                $sessionId.'**'.$password
             );
             // $this->logStageCompleted($context, $stage, $stageStartedAt);
 
@@ -161,7 +190,7 @@ class FinancialVoucherService
                     'username' => $username,
                     'password' => $encryptedPassword,
                 ], JSON_UNESCAPED_UNICODE), 'text/plain')
-                ->post($this->baseUrl . '/Services/Framework/AuthenticationService.svc/login');
+                ->post($this->baseUrl.'/Services/Framework/AuthenticationService.svc/login');
 
             if ($response->failed()) {
                 throw $this->loginException(
@@ -273,7 +302,7 @@ class FinancialVoucherService
             return '[invalid]';
         }
 
-        return ($parts['scheme'] ?? 'http') . '://' . $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : '');
+        return ($parts['scheme'] ?? 'http').'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
     }
 
     private function maskUsername(string $username): string
@@ -284,7 +313,7 @@ class FinancialVoucherService
             return '[missing]';
         }
 
-        return mb_substr($username, 0, 1) . str_repeat('*', max(2, $length - 1));
+        return mb_substr($username, 0, 1).str_repeat('*', max(2, $length - 1));
     }
 
     /** @return array<string, int|string|null> */
@@ -337,10 +366,10 @@ class FinancialVoucherService
             $request = $request->withOptions(['cookies' => $this->cookieJar]);
         }
 
-        Log::info('Rahkaran data posting', [...$data, 'url' => $this->baseUrl . $url]);
+        Log::info('Rahkaran data posting', [...$data, 'url' => $this->baseUrl.$url]);
 
         $response = $request->withBody(json_encode($data, JSON_UNESCAPED_UNICODE))
-            ->post($this->baseUrl . $url);
+            ->post($this->baseUrl.$url);
 
         Log::info('Rahkaran data response', [
             'body' => $response->body(),

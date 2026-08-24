@@ -199,6 +199,25 @@ class IntegrationFinancialApiClientTest extends TestCase
         $this->assertArrayNotHasKey('Debit', $item->toArray());
     }
 
+    public function test_voucher_item_omits_optional_numeric_zero_values(): void
+    {
+        $item = new VoucherItemData(
+            Debit: 500,
+            FollowUpDate: '0',
+            FollowUpNumber: '0',
+            RowNumber: 0,
+            TaxAmount: 0,
+            DLTypeRef5: 0,
+            IsSLTraceable: false,
+        );
+
+        foreach (['FollowUpDate', 'FollowUpNumber', 'RowNumber', 'TaxAmount', 'DLTypeRef5'] as $field) {
+            $this->assertArrayNotHasKey($field, $item->toArray());
+        }
+
+        $this->assertFalse($item->toArray()['IsSLTraceable']);
+    }
+
     private function tokenPair(): array
     {
         return [

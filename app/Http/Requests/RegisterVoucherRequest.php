@@ -55,6 +55,12 @@ class RegisterVoucherRequest extends FormRequest
                     }
                 }
 
+                foreach (['FollowUpNumber', 'FollowUpDate'] as $followUpField) {
+                    if ($this->isOmittable($item[$followUpField] ?? null)) {
+                        $item[$followUpField] = null;
+                    }
+                }
+
                 $items[$index] = $item;
             }
 
@@ -170,6 +176,7 @@ class RegisterVoucherRequest extends FormRequest
                         'Exactly one of Debit or Credit must be greater than zero.',
                     );
                 }
+
             }
         });
     }
@@ -279,9 +286,18 @@ class RegisterVoucherRequest extends FormRequest
         return $value === null || $value === '';
     }
 
+    private function isOmittable(mixed $value): bool
+    {
+        if ($this->isBlank($value)) {
+            return true;
+        }
+
+        return ! is_bool($value) && is_numeric($value) && (float) $value === 0.0;
+    }
+
     private function asNullableString(mixed $value): ?string
     {
-        return $this->isBlank($value) ? null : (string) $value;
+        return $this->isOmittable($value) ? null : (string) $value;
     }
 
     private function asInt(mixed $value): int
@@ -291,12 +307,12 @@ class RegisterVoucherRequest extends FormRequest
 
     private function asNullableInt(mixed $value): ?int
     {
-        return $this->isBlank($value) ? null : (int) $value;
+        return $this->isOmittable($value) ? null : (int) $value;
     }
 
     private function asNullableFloat(mixed $value): ?float
     {
-        return $this->isBlank($value) ? null : (float) $value;
+        return $this->isOmittable($value) ? null : (float) $value;
     }
 
     private function asAccountingAmount(mixed $value): ?float
@@ -318,7 +334,7 @@ class RegisterVoucherRequest extends FormRequest
 
     private function asWcfDate(mixed $value): ?string
     {
-        if ($this->isBlank($value)) {
+        if ($this->isOmittable($value)) {
             return null;
         }
 

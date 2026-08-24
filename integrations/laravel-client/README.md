@@ -97,7 +97,7 @@ Important accounting rules:
 - Send only the detail levels allowed for the selected account.
 - When Rahkaran requires level 5, provide `DL5` and its matching `DLTypeRef5`; do not put that code in `DL4`.
 - `SLRef` may be omitted or `null`. If it is null, the key is not sent.
-- All optional `null` values are recursively removed from the request. Explicit `0` and `false` values are preserved.
+- All optional `null` and numeric zero values are recursively removed from voucher items. Boolean `false` values are preserved.
 - The financial API converts `Date` and `FollowUpDate` to Rahkaran's WCF date format.
 
 The DTO supports `DL4` through `DL20`, their corresponding `DLTypeRef4` through `DLTypeRef20`, and `DLLevel4Title` through `DLLevel20Title`.

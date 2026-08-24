@@ -128,7 +128,7 @@ readonly class VoucherItemData implements PayloadData
         $isList = array_is_list($data);
 
         foreach ($data as $key => $value) {
-            if ($value === null) {
+            if ($value === null || self::isNumericZero($value)) {
                 unset($data[$key]);
             } elseif (is_array($value)) {
                 $data[$key] = self::withoutNulls($value);
@@ -136,5 +136,10 @@ readonly class VoucherItemData implements PayloadData
         }
 
         return $isList ? array_values($data) : $data;
+    }
+
+    private static function isNumericZero(mixed $value): bool
+    {
+        return ! is_bool($value) && is_numeric($value) && (float) $value === 0.0;
     }
 }

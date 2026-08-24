@@ -67,6 +67,20 @@ class VoucherItemData
         $this->Credit = $hasCredit ? $this->Credit : null;
 
         $this->dropCurrencyBlocksWithoutCurrency();
+        $this->dropFollowUpWithoutTraceableSL();
+    }
+
+    /**
+     * Rahkaran refuses follow-up data on an account that is not traceable
+     * ("معین (های) ... دارای ویژگی پیگیری نمی باشند"), so the follow-up pair is
+     * dropped when the caller states the SL carries no traceability.
+     */
+    private function dropFollowUpWithoutTraceableSL(): void
+    {
+        if ($this->IsSLTraceable === false) {
+            $this->FollowUpDate = null;
+            $this->FollowUpNumber = null;
+        }
     }
 
     /**
@@ -166,7 +180,7 @@ class VoucherItemData
         $isList = array_is_list($data);
 
         foreach ($data as $key => $value) {
-            if ($value === null) {
+            if ($value === null || self::isNumericZero($value)) {
                 unset($data[$key]);
             } elseif (is_array($value)) {
                 $data[$key] = self::withoutNulls($value);
@@ -174,5 +188,10 @@ class VoucherItemData
         }
 
         return $isList ? array_values($data) : $data;
+    }
+
+    private static function isNumericZero(mixed $value): bool
+    {
+        return ! is_bool($value) && is_numeric($value) && (float) $value === 0.0;
     }
 }

@@ -106,7 +106,7 @@ class FinancialVoucherApiTest extends TestCase
 
                 return $data->State->value === 1
                     && $data->Date === '/Date(1765465335000+0330)/'
-                    && $item['ID'] === 0
+                    && ! array_key_exists('ID', $item)
                     && $item['DL4'] === '1001'
                     && $item['DLTypeRef4'] === 1
                     && $item['Debit'] === 1000.0
@@ -288,6 +288,75 @@ class FinancialVoucherApiTest extends TestCase
         }
 
         $this->assertSame(3000000.0, $article['Debit']);
+    }
+
+    public function test_follow_up_data_is_not_sent_for_a_non_traceable_sl(): void
+    {
+        $sent = null;
+
+        $service = Mockery::mock(FinancialVoucherService::class);
+        $service->shouldReceive('register_voucher')
+            ->once()
+            ->with(Mockery::on(function ($data) use (&$sent): bool {
+                $sent = $data->toArray();
+
+                return true;
+            }))
+            ->andReturn(['VoucherID' => 102]);
+        $this->app->instance(FinancialVoucherService::class, $service);
+
+        $this->authenticateClient('vouchers:create')
+            ->postJson('/api/v1/financial/vouchers', [
+                'BranchRef' => 1,
+                'FiscalYearRef' => 6,
+                'LedgerRef' => 1,
+                'VoucherTypeRef' => 1,
+                'VoucherTypeCode' => 1,
+                'Number' => 2180,
+                'State' => 1,
+                'Creator' => 488,
+                'VoucherItemData' => [
+                    [
+                        'SLCode' => '8013125',
+                        'Debit' => 3000000,
+                        'RowNumber' => 1,
+                        'IsSLTraceable' => false,
+                        'FollowUpDate' => 1785875400,
+                        'FollowUpNumber' => '8616779',
+                    ],
+                    [
+                        'SLCode' => '2006122',
+                        'Credit' => 3000000,
+                        'RowNumber' => 2,
+                        'IsSLTraceable' => true,
+                        'FollowUpDate' => 1785875400,
+                        'FollowUpNumber' => '8616779',
+                    ],
+                    [
+                        'SLCode' => '2006122',
+                        'Debit' => 1000,
+                        'RowNumber' => 0,
+                        'IsSLTraceable' => true,
+                        'FollowUpDate' => 0,
+                        'FollowUpNumber' => '0',
+                        'TaxAmount' => 0,
+                    ],
+                ],
+            ])
+            ->assertOk();
+
+        $nonTraceable = collect($sent['VoucherItems'])->firstWhere('IsSLTraceable', false);
+        $traceable = collect($sent['VoucherItems'])->first(fn (array $item): bool => isset($item['FollowUpNumber']));
+        $zeroValues = collect($sent['VoucherItems'])->firstWhere('Debit', 1000.0);
+
+        $this->assertArrayNotHasKey('FollowUpDate', $nonTraceable);
+        $this->assertArrayNotHasKey('FollowUpNumber', $nonTraceable);
+        $this->assertSame('8616779', $traceable['FollowUpNumber']);
+        $this->assertStringStartsWith('/Date(', $traceable['FollowUpDate']);
+        $this->assertArrayNotHasKey('FollowUpDate', $zeroValues);
+        $this->assertArrayNotHasKey('FollowUpNumber', $zeroValues);
+        $this->assertArrayNotHasKey('RowNumber', $zeroValues);
+        $this->assertArrayNotHasKey('TaxAmount', $zeroValues);
     }
 
     private function authenticateClient(string $ability): static
