@@ -10,27 +10,35 @@ readonly class RegisterVoucherData implements PayloadData
 {
     /**
      * @param  list<VoucherItemData>  $VoucherItemData
+     * @param  array<string, mixed>|null  $ExtraInfo
+     * @param  list<array<string, mixed>>|null  $VoucherReferenceInfo
      */
     public function __construct(
         public int $BranchRef,
-        public string $Date,
+        public int|string $Date,
         public int $FiscalYearRef,
         public int $LedgerRef,
         public int $VoucherTypeRef,
-        public string $VoucherTypeOwnerSystem,
         public int $VoucherTypeCode,
+        public int $Number,
+        public int $Creator,
         public array $VoucherItemData,
-        public string $Description = '',
-        public string $Description_En = '',
-        public int $Number = 0,
-        public string $AuxiliaryNumber = '',
-        public bool $IsCurrencyBased = false,
+        public ?string $VoucherTypeOwnerSystem = null,
+        public ?string $Description = null,
+        public ?string $Description_En = null,
+        public ?string $AuxiliaryNumber = null,
+        public ?bool $IsCurrencyBased = null,
         public VoucherState $State = VoucherState::WithNoRevision,
-        public bool $IsExternal = true,
-        public int $Creator = 0,
-        public string $CreatorName = '',
-        public string $StateTitle = '',
+        public ?bool $IsExternal = null,
+        public ?string $CreatorName = null,
+        public ?string $StateTitle = null,
+        public ?array $ExtraInfo = null,
+        public ?array $VoucherReferenceInfo = null,
     ) {
+        if ($this->VoucherItemData === []) {
+            throw new InvalidArgumentException('VoucherItemData must contain at least one voucher item.');
+        }
+
         foreach ($this->VoucherItemData as $item) {
             if (! $item instanceof VoucherItemData) {
                 throw new InvalidArgumentException('VoucherItemData must contain only VoucherItemData objects.');
@@ -38,13 +46,15 @@ readonly class RegisterVoucherData implements PayloadData
         }
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
-        return [
+        return self::withoutNulls([
             'BranchRef' => $this->BranchRef,
             'Date' => $this->Date,
             'Description' => $this->Description,
             'Description_En' => $this->Description_En,
+            'ExtraInfo' => $this->ExtraInfo,
             'FiscalYearRef' => $this->FiscalYearRef,
             'LedgerRef' => $this->LedgerRef,
             'VoucherTypeRef' => $this->VoucherTypeRef,
@@ -62,6 +72,23 @@ readonly class RegisterVoucherData implements PayloadData
                 fn (VoucherItemData $item): array => $item->toArray(),
                 $this->VoucherItemData,
             ),
-        ];
+            'VoucherReferenceInfo' => $this->VoucherReferenceInfo,
+        ]);
+    }
+
+    /** @return array<mixed> */
+    private static function withoutNulls(array $data): array
+    {
+        $isList = array_is_list($data);
+
+        foreach ($data as $key => $value) {
+            if ($value === null) {
+                unset($data[$key]);
+            } elseif (is_array($value)) {
+                $data[$key] = self::withoutNulls($value);
+            }
+        }
+
+        return $isList ? array_values($data) : $data;
     }
 }

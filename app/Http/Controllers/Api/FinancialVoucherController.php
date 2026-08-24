@@ -17,9 +17,11 @@ class FinancialVoucherController extends Controller
 
     public function registerVoucher(RegisterVoucherRequest $request): JsonResponse
     {
-        return response()->json(
-            $this->service->register_voucher($request->toDto())
-        );
+        $result = $this->service->register_voucher($request->toDto());
+        $hasValidationErrors = is_array($result['ValidationErrors'] ?? null)
+            && $result['ValidationErrors'] !== [];
+
+        return response()->json($result, $hasValidationErrors ? 422 : 200);
     }
 
     public function registerDL(RegisterDLRequest $request): JsonResponse

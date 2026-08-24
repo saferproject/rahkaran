@@ -140,7 +140,7 @@ class FinancialVoucherApiTest extends TestCase
                     && $item->IsSLTraceable === null
                     && $item->CurrencyTitle === null
                     && ! array_key_exists('Date', $data->toArray())
-                    && $item->toArray()['SLRef'] === 1;
+                    && ! array_key_exists('SLRef', $item->toArray());
             }))
             ->andReturn(['VoucherID' => 100]);
         $this->app->instance(FinancialVoucherService::class, $service);
@@ -163,6 +163,27 @@ class FinancialVoucherApiTest extends TestCase
             ])
             ->assertOk()
             ->assertExactJson(['VoucherID' => 100]);
+    }
+
+    public function test_it_returns_rahkaran_validation_errors_as_an_unprocessable_response(): void
+    {
+        $service = Mockery::mock(FinancialVoucherService::class);
+        $service->shouldReceive('register_voucher')
+            ->once()
+            ->andReturn([
+                'ID' => 0,
+                'ValidationErrors' => [[
+                    'key' => null,
+                    'value' => 'مقدار تفصیلی سطح 5 اجباری است',
+                ]],
+            ]);
+        $this->app->instance(FinancialVoucherService::class, $service);
+
+        $this->authenticateClient('vouchers:create')
+            ->postJson('/api/v1/financial/vouchers', $this->voucherPayload())
+            ->assertUnprocessable()
+            ->assertJsonPath('ID', 0)
+            ->assertJsonPath('ValidationErrors.0.value', 'مقدار تفصیلی سطح 5 اجباری است');
     }
 
     public function test_validation_errors_name_the_missing_fields(): void
